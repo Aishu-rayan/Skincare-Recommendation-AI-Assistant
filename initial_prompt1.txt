@@ -1,0 +1,97 @@
+>  I'm looking to build a skincare AI assistant 
+   chatbot-like app. High level idea @Initial_Plan.txt 
+
+   Similar skincare AI assistant app implementation 
+   https://weaviate.io/blog/glowe-app 
+   Use web search tool to read this blog.
+
+   this is what the other skincase AI assistant app 
+   implementation blog has written:
+   <START>
+    Most skincare apps just throw products at you without really understanding what works together. We wanted to do something different with Glowe, so we built a system that actually knows how skincare routines work in the real world.
+
+    For this, we started with a healthy dataset of around 1,440 curated Korean skincare products and over 94,500 user reviews. But unlike most recommendation systems that treat products and reviews as separate, isolated pieces, we looked at the bigger picture of how products would work together in real user routines. Because let’s be honest: your morning routine can’t also be your evening routine, and some ingredients just don’t get along.
+
+    So, we ran every review through an LLM (Gemma 3 12B) to pull out the real effects, good and bad, that people experienced based on the review's text. The result? Enhanced reviews that show what works (and what doesn’t):
+
+    {
+    "text": "Helped calm my redness and hydrate my skin, though I broke out a little at first.",
+    "positive_effects": ["Reduced redness", "Hydration"],
+    "negative_effects": ["Initial breakouts"]
+    }
+
+    This way, we're not just guessing or using marketing-tailored descriptions; we actually know what each product actually does based on real experiences.
+
+    </END>
+
+   I have this database - with skincase products and their
+    reviews @sephora_select_reviews.db 
+
+
+   Please go through the database tables - number of 
+   products, number of reviews, look at few samples of 
+   product rows, reviews few rows (20 to 30 rows for 
+   example) to get an idea of the data. 
+
+   Then design how I can do similar step with my data. 
+   what information can I pull out from the reviews . 
+   pulling out good number of information from the reviews
+    will be helpful - for giving good recommendation to 
+   the user for their personalised case.
+   the user will be asking for one kind of product - like 
+   moisturiser (or) sunscreen (or) toner - during the chat
+    stage.
+
+   Please go through this blog and their implementation 
+   https://weaviate.io/blog/glowe-app
+
+   We could be collecting from the user information 
+   something like this:
+   user_information = {
+       "goals": {
+           "firmer_skin": False,
+           "hydrate": False,
+           "glow_up": False,
+           "repair_renew": False,
+           "soothe_relax": False,
+           "protect": False
+       },
+       "conditions": {
+           "acne": False,
+           "clogged_pores": False,
+           "redness": True,
+           "wrinkles": True,
+           "pigmentation": True,
+           "rough_texture": False
+       },
+       "skin_type": 67,  # if <33: 'Dry'; elif >66: 
+   'Oily'; else: 'Normal'
+       "sensitive_skin": False,
+       "age": 30,
+       "additional_concerns": "My skin doesn't work well 
+   with retinol"
+   }
+
+
+   Please give Design plan of how we can extract suitable 
+   relevant information from the user reviews (positive 
+   effects, negative effects, product using experience, 
+   any other relavant information from the reviews), how we can do 
+   embedding, TF-IDF, etc - maybe update the product data 
+   (maybe a new table), maybe another embedding, and how 
+   to use this information to give personalised 
+   recommendation to the user for their skincase 
+   requirement / case. 
+
+   Please create a detailed Design plan (similar to the 
+   blog) in markdown  format. Please create suitable 
+   design / architecture diagrams using Nano Banana Pro 
+   MCP server, and save to this project folder itself. 
+   Explain clearly about the extraction step 
+   from the reviews (extracting things like positive 
+   effects etc, what are some things we can extract) - how
+    to go about implementing this.
+
+   Don't implement code. Only create a detailed design 
+   plan . Ask any clarifying questions. Use perplexity MCP
+    server if necessary.
