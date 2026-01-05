@@ -1,0 +1,3 @@
+I have used kaggle Sephora dataset to extract reviews and have close to 1Mn reviews of skincare products
+I want to build an agentic AI that is trained solely on this dataset and then gives recommendation for the user based on their requirements
+The user will click a picture of their face and the image will be analyzed to identify skin type to do profiling, and the chatbot can also ask the user for questions at the beginning about their skin and skin type. The chatbot should give customized night and morning skin care routine for the person to adopt based not on the product claims but rather genuine user reviews and recommendations.  
