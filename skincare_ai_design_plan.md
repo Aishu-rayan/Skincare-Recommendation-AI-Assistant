@@ -13,7 +13,7 @@ This document describes the end-to-end design for a skincare AI assistant built 
 - **`select_customer_reviews`** (~238,929 rows)
   - Key columns: `primary_category`, `secondary_category`, `tertiary_category`, `product_id`, `product_name`, `brand_name`, `review_title`, `review_text`, `rating`, `is_recommended`, `skin_type`, `skin_tone`, `eye_color`, `ingredients`, `price_usd`, `highlights`.
 
-We join reviews to products via `product_id` and focus primarily on skincare: rows where `primary_category = 'Skincare'` and `secondary_category` in `{Moisturizers, Sunscreens, Cleansers, Treatments, Toners, Masks, Eye Creams}`.
+We join reviews to products via `product_id` and focus primarily on skincare: rows where `primary_category = 'Skincare'` and `secondary_category` in `{Moisturizers, Sunscreens, Cleansers, Treatments, Toners}`.
 
 ### 1.2 Target conceptual entities
 
@@ -24,7 +24,7 @@ Logical entities used across the system:
 - **Structured Review Effects** – structured fields extracted from `review_text` by an LLM.
 - **Per-product Effect Profile** – TF–IDF style weights of effects per product.
 - **Effect Vocabulary** – canonical list of effect labels (e.g. `hydration`, `reduced_redness`).
-- **Embeddings** – vectors for products and effects stored in a vector database.
+- **Embeddings** – vectors stored in SQLite (via `sqlite-vector`) for similarity search.
 - **User Profile** – structured dictionary like `user_information` (goals, conditions, skin type score, sensitivities, age, additional concerns).
 
 ---
@@ -35,73 +35,71 @@ Goal: convert free-text reviews into structured signals that describe what each 
 
 ### 2.1 New table: `review_effects`
 
-Create a table (initially in SQLite, or a downstream warehouse) to store per-review extracted information:
+Create a table in SQLite to store per-review extracted information:
 
 ```sql
 CREATE TABLE review_effects (
-    review_effect_id     INTEGER PRIMARY KEY,
-    review_rowid         INTEGER NOT NULL,  -- rowid / PK from select_customer_reviews
-    product_id           TEXT NOT NULL,
+    review_effect_id   INTEGER PRIMARY KEY,
+    review_rowid       INTEGER NOT NULL,  -- rowid / PK from select_customer_reviews
+    product_id         TEXT NOT NULL,
 
-    -- core extracted info
-    positive_effects     TEXT NOT NULL,     -- JSON list[str]
-    negative_effects     TEXT NOT NULL,     -- JSON list[str]
-    side_effects         TEXT NOT NULL,     -- JSON list[str]
-    usage_experience     TEXT NOT NULL,     -- JSON list[str] (e.g. "absorbs quickly", "pills under makeup")
+    -- core extracted info (JSON arrays)
+    positive_effects   TEXT,              -- JSON list[str]
+    negative_effects   TEXT,              -- JSON list[str]
+    side_effects       TEXT,              -- JSON list[str]
 
-    -- user & context signals
-    skin_type_signals    TEXT NOT NULL,     -- JSON list[str] ("dry", "normal", "combination", "oily", "sensitive")
-    conditions_helped    TEXT NOT NULL,     -- JSON list[str] ("acne", "redness", "pigmentation", "wrinkles", etc.)
-    conditions_worsened  TEXT NOT NULL,     -- JSON list[str]
-    age_group            TEXT NOT NULL,     -- e.g. "<20", "20-29", "30-39", "40+"
-    time_to_see_results  TEXT NOT NULL,     -- JSON list[str], e.g. ["1 week", "1 month"]
+    -- reviewer context signals (JSON arrays)
+    skin_type_signals  TEXT,              -- JSON list[str] ("dry", "normal", "combination", "oily", "sensitive")
+    conditions_helped  TEXT,              -- JSON list[str]
 
-    -- behavioral / satisfaction
-    overall_sentiment    REAL NOT NULL,     -- [-1, 1]
-    satisfaction_score   REAL NOT NULL,     -- 0-1
-    repurchase_intent    REAL NOT NULL,     -- 0-1 probability
-    recommend_to_friend  REAL NOT NULL,     -- 0-1
+    -- optional weighting
+    satisfaction_score REAL,              -- 0-1
 
     -- meta
-    extraction_version   TEXT NOT NULL,
-    extracted_at         TEXT NOT NULL
+    extraction_version TEXT NOT NULL,
+    extracted_at       TEXT NOT NULL
 );
+
+CREATE INDEX idx_review_effects_product_id ON review_effects(product_id);
+CREATE INDEX idx_review_effects_review_rowid ON review_effects(review_rowid);
 ```
 
-**Fields to extract per review:**
+**Fields to extract per review (v1):**
 
-- `positive_effects`: benefits experienced (e.g. `hydration`, `reduced_redness`, `soothed_skin`, `brightening`, `reduced_pores`).
-- `negative_effects`: undesirable outcomes (e.g. `caused_breakouts`, `increased_redness`, `left_white_cast`).
-- `side_effects`: tolerability issues (e.g. `eye_irritation`, `stinging`, `burning`).
-- `usage_experience`: UX descriptors (e.g. `lightweight`, `heavy_greasy`, `strong_fragrance`, `no_white_cast`, `pills_under_makeup`).
-- `skin_type_signals`: reviewer skin info mapped to a small fixed set `{dry, normal, combination, oily, sensitive}`.
-- `conditions_helped` / `conditions_worsened`: from a fixed vocab matching `user_information.conditions` keys plus a few extras (`dark_circles`, `rosacea`, etc.).
-- `age_group`: bucketed from any age clues in the text (or left generic if unknown).
-- `time_to_see_results`: approximate time horizon for effects.
-- `overall_sentiment`: continuous sentiment score.
-- `satisfaction_score`, `repurchase_intent`, `recommend_to_friend`: behavior and satisfaction indicators.
+- `positive_effects`: benefits experienced (e.g. `hydration`, `reduced_redness`).
+- `negative_effects`: undesirable outcomes (e.g. `caused_breakouts`, `increased_redness`).
+- `side_effects`: tolerability issues (e.g. `stinging`, `burning`).
+- `skin_type_signals`: normalized to `{dry, normal, combination, oily, sensitive}`.
+- `conditions_helped`: normalized to a fixed condition vocabulary.
+- `satisfaction_score`: optional numeric signal derived from rating / recommendation + text sentiment.
 
 ### 2.2 LLM extraction process
 
 For each `select_customer_reviews` row:
 
 1. Fetch full `review_text`, with `rating`, `is_recommended`, `skin_type`, and categories as context.
-2. Call an LLM (e.g. Claude, GPT-4.x) with a strict JSON schema and a fixed label set for conditions and skin types.
+2. Call an LLM with a strict JSON schema and a fixed label set for conditions and skin types.
 3. Validate the LLM response (types, required keys) and normalize strings (lowercase, canonical labels) before writing to `review_effects`.
 4. Log any parsing failures in a small `extraction_errors` table for later re-processing.
 
-The pipeline runs in batches (e.g. 1,000 reviews per batch) and can be restarted idempotently using `extraction_version` and `review_rowid` ranges.
+The pipeline runs offline in batches (e.g. 1,000 reviews per batch), is restartable/idempotent using `extraction_version` and `review_rowid` ranges, and is intended as a one-time MVP build step (no continuous ingestion).
 
-### 2.3 Handling noisy or short reviews
+### 2.3 Cost/time gating for full vs sampled extraction
 
-- If `review_text` is short or vague, allow the model to output empty effect lists and a neutral sentiment.
-- Down-weight these later by scaling counts with `satisfaction_score` and review length.
+Before running extraction across all reviews:
+
+1. Run a small pilot on a representative sample (e.g. 1,000–5,000 reviews).
+2. Record average input tokens, average output tokens, and wall-clock throughput.
+3. Estimate total cost and runtime for:
+   - full-pass processing, and
+   - stratified sampling per product (e.g. N reviews/product split across ratings and skin types).
+4. Choose model (local vs remote) and review volume based on the budget cap.
 
 ---
 
 ## 3. Effect Vocabulary & TF–IDF Profiling
 
-After `review_effects` is populated, we build a canonical effect vocabulary and a per-product effect profile similar to Glowe.
+After `review_effects` is populated, build a canonical effect vocabulary and a per-product effect profile.
 
 ### 3.1 New table: `effect_vocabulary`
 
@@ -109,28 +107,22 @@ After `review_effects` is populated, we build a canonical effect vocabulary and 
 CREATE TABLE effect_vocabulary (
     effect_id     INTEGER PRIMARY KEY,
     effect_name   TEXT UNIQUE NOT NULL,  -- e.g. "hydration", "reduced_redness"
-    effect_type   TEXT NOT NULL,         -- {"benefit", "negative", "side_effect", "experience"}
+    effect_type   TEXT NOT NULL,         -- {"benefit", "negative", "side_effect"}
     description   TEXT,
-    is_condition  INTEGER NOT NULL DEFAULT 0  -- 1 if maps directly to a condition key
+    is_condition  INTEGER NOT NULL DEFAULT 0
 );
 ```
 
-### 3.2 Building the vocabulary
+### 3.2 Simpler vocabulary creation (v1)
 
-1. Aggregate all raw phrases from `positive_effects`, `negative_effects`, `side_effects`, and `usage_experience`.
-2. Normalize via heuristics: lowercase, trim, singularize, remove stopwords.
-3. Optionally cluster phrases using embeddings and merge semantically similar ones into 200–300 canonical `effect_name` labels.
-4. Manually review cluster labels once to ensure domain sense (e.g. `"hydrated skin"`, `"very moisturizing"` → `hydration`).
-5. Store final labels and metadata in `effect_vocabulary` and update `review_effects` so all effect lists reference canonical names.
+1. Start with a compact seed list of canonical effects (e.g. 50–150 total across benefit/negative/side-effect).
+2. Collect raw phrases from a sample of extracted outputs.
+3. Use one LLM-assisted normalization pass to map raw phrases → closest canonical label (and optionally propose a small number of new labels).
+4. Manually approve new labels once, then freeze the vocabulary for v1.
 
-Examples of canonical effects:
+This avoids embedding clustering while still producing stable, searchable labels.
 
-- Benefits: `hydration`, `reduced_redness`, `oil_control`, `radiance`, `evened_pigmentation`, `reduced_fine_lines`, `calmed_sensitivity`.
-- Negatives: `caused_breakouts`, `increased_redness`, `drying`, `caused_flaking`.
-- Side effects: `eye_irritation`, `stinging`, `burning`, `headache_from_fragrance`.
-- Experience: `lightweight`, `heavy_greasy`, `strong_fragrance`, `no_white_cast`, `pills_under_makeup`.
-
-### 3.3 New table: `product_effect_profile`
+### 3.3 New table: `product_effect_profile` (TF–IDF)
 
 For each `(product_id, effect_name)` pair, compute TF–IDF style weights.
 
@@ -146,201 +138,89 @@ CREATE TABLE product_effect_profile (
 );
 ```
 
-#### 3.3.1 Term Frequency (TF)
+#### 3.3.1 TF simplification
 
-For product `p` and effect `e`:
-
-- Let `c_pe` be the sum over all reviews for product `p` of mentions of effect `e`, optionally weighted by `satisfaction_score` and review length.
-- Define:
+Use a single TF form for v1:
 
 ```text
 TF_{p,e} = log(c_pe + 1)
 ```
 
-#### 3.3.2 Inverse Document Frequency (IDF)
+where `c_pe` is the number of reviews for product `p` that mention effect `e`. If `satisfaction_score` is present, treat each mention as a fractional count (e.g. add `satisfaction_score` instead of `1`).
 
-- Let `N` be total number of products.
-- Let `df_e` be the number of distinct products with `c_pe > 0`.
-
-```text
-IDF_e = log(N / df_e)
-```
-
-#### 3.3.3 Normalized TF–IDF weight
-
-For each product `p`:
+#### 3.3.2 IDF
 
 ```text
-w_{p,e} = (TF_{p,e} * IDF_e) / sum_j (TF_{p,j} * IDF_j)
+IDF_e = log(N / (df_e + 1))
 ```
 
-Store `w_{p,e}` as `tfidf_weight`. Weights per product sum to ~1 and represent how strongly the product is associated with each effect versus others.
+Adding `+1` in the denominator avoids edge cases when `df_e` is very small.
 
-### 3.4 Condition- and skin-type-specific profiles (optional)
+### 3.4 Simple segment weighting (v1)
 
-To tailor recommendations more precisely, compute alternate profiles restricted to certain reviewer segments, e.g.:
+Compute TF–IDF once globally, then apply a simple re-ranking multiplier at query time based on segment match:
 
-- `product_effect_profile_oily` – only reviews where `skin_type_signals` includes `oily`.
-- `product_effect_profile_sensitive` – only reviews with `sensitive`.
+- If user is oily/dry/sensitive, boost products where a larger share of extracted reviews contain the matching `skin_type_signals`.
 
-These use the same TF–IDF logic but on filtered subsets of `review_effects`.
+This can be stored as per-product segment counts and used without maintaining separate segment-specific TF–IDF tables.
 
 ---
 
-## 4. Dual-Embedding Strategy
+## 4. Single-Embedding Strategy (v1)
 
-We use two embeddings per product, as in Glowe: a **product embedding** and an **effect embedding**.
+Use one embedding per product derived from aggregated review effects.
 
-### 4.1 Product embedding
+### 4.1 Product effect summary text
 
-**Purpose:** general product search, brand/category navigation, and description-level similarity.
+For each product, generate a compact “effect summary” string from `product_effect_profile` (and supporting counts), for example:
 
-**Input text per product:**
+> "Moisturizer. Users report: hydration, reduced redness, soothed skin. Common negatives: heavy feel, caused breakouts. Best for: dry/sensitive."
 
-- `product_name`, `brand_name`.
-- `primary_category`, `secondary_category`, `tertiary_category`.
-- `highlights` (e.g. `Hydrating`, `Oil Free`, `Good for: Dark spots`).
-- Short ingredient summary (truncated to manageable length).
+This text is embedded using a sentence embedding model and stored per product.
 
-Example assembled text:
+### 4.2 Storage and search in SQLite via `sqlite-vector`
 
-> "Hydra Vizor Invisible Moisturizer Broad Spectrum SPF 30 Sunscreen with Niacinamide + Kalahari Melon by Fenty Skin. Category: Skincare > Moisturizers > Moisturizers. Highlights: Hydrating, Oil Free, Clean at Sephora, Black Owned. Key ingredients: Niacinamide, Hyaluronic Acid, Kalahari Melon Seed Oil."
+Store embeddings as `BLOB` vectors inside SQLite and query using the `sqlite-vector` extension (https://github.com/sqliteai/sqlite-vector).
 
-This string is embedded using a sentence embedding model and stored as `product_embedding` for that `product_id`.
+Implementation approach:
 
-### 4.2 Effect embedding
-
-**Purpose:** capture what the product actually does based on reviews, using TF–IDF weighted effects.
-
-#### 4.2.1 Static effect vectors
-
-For each canonical `effect_name` in `effect_vocabulary`, compute an embedding by encoding:
-
-> "EFFECT_NAME – short explanation"
-
-e.g. `"hydration – increases skin moisture and plumpness"`.
-
-Store the resulting vector as `v_effect[effect_name]`.
-
-#### 4.2.2 Per-product effect embedding
-
-For product `p` with effect weights `w_{p,e}`:
-
-```text
-v_effect(p) = sum_e w_{p,e} * v_effect[e]
-```
-
-Optionally mix in a small amount of the product description embedding to encourage diversity:
-
-```text
-v_effect_final(p) = v_effect(p) + gamma * v_product_description(p)
-```
-
-where `gamma` is a small scalar (e.g. 0.1).
-
-### 4.3 Storage in a vector DB
-
-Use a vector database (e.g. Weaviate, Qdrant, pgvector) with either:
-
-- One collection `products` with two named vectors: `product_embedding` and `effect_embedding`, or
-- Two collections keyed by `product_id`: `product_text_vectors` and `product_effect_vectors`.
-
-Each stored object also includes scalar metadata for filtering (categories, price, tags like `has_retinol`, `has_strong_acid`, etc.).
+- Table `product_vectors(product_id TEXT PRIMARY KEY, effect_summary TEXT, embedding BLOB, embedding_dim INTEGER, embedding_model TEXT, created_at TEXT)`
+- Initialize vector search for that table/column via `vector_init(...)`
+- Query nearest neighbors via the extension’s scan function and join back to product metadata.
 
 ---
 
 ## 5. Retrieval & Recommendation Logic
 
-Given a `user_information` dict and a requested product type (e.g. `"moisturizer"`), we build a user effect profile and search in effect space.
+Given a `user_information` dict and a requested product type (e.g. "moisturizer"), embed a short query string and retrieve similar products.
 
-### 5.1 Mapping user profile to a target effect vector
+### 5.1 Build a user query string
 
-The `user_information` structure:
+Generate a short, consistent text query from user goals/conditions/skin type, for example:
 
-```python
-user_information = {
-    "goals": {
-        "firmer_skin": False,
-        "hydrate": False,
-        "glow_up": False,
-        "repair_renew": False,
-        "soothe_relax": False,
-        "protect": False
-    },
-    "conditions": {
-        "acne": False,
-        "clogged_pores": False,
-        "redness": True,
-        "wrinkles": True,
-        "pigmentation": True,
-        "rough_texture": False
-    },
-    "skin_type": 67,
-    "sensitive_skin": False,
-    "age": 30,
-    "additional_concerns": "My skin doesn't work well with retinol"
-}
-```
+> "moisturizer for oily skin; concerns: acne, redness; wants: hydrate; avoid irritation"
 
-We derive user weights `u_e` over `effect_name`:
-
-- From goals:
-  - `hydrate=True` → increase weights for `hydration`, `strengthened_skin_barrier`.
-  - `glow_up=True` → `radiance`, `evened_pigmentation`.
-  - `repair_renew=True` → `reduced_fine_lines`, `skin_texture_smoothing`.
-- From conditions:
-  - `redness=True` → `reduced_redness`, avoid `increased_redness`.
-  - `pigmentation=True` → `reduced_dark_spots`, `evened_pigmentation`.
-  - `acne=True` → `reduced_acne`, penalize `caused_breakouts`.
-- From `skin_type` and `sensitive_skin`:
-  - If `skin_type > 66` (oily) → emphasize `oil_control`, `matte_finish`, penalize `heavy_greasy`.
-  - If `skin_type < 33` (dry) → emphasize `hydration`, penalize `drying`.
-  - If `sensitive_skin=True` → penalize `strong_fragrance`, `stinging`, `burning`, etc.
-- From `additional_concerns`:
-  - Small LLM mapping step to parse text and add constraints (e.g. `avoid_retinol`, extra penalties for effects related to `retinol_irritation`).
-
-We then build a user vector in the same effect space:
-
-```text
-v_user = sum_e u_e * v_effect[e]
-```
+Embed this query using the same embedding model used for product effect summaries.
 
 ### 5.2 Candidate filtering
 
 Before vector search, filter products by metadata:
 
 - `primary_category = 'Skincare'`.
-- `secondary_category` / `tertiary_category` matching requested type (e.g. `"Moisturizers"`, `"Sunscreens"`, `"Toners"`).
-- Optional constraints: price range, specific brands, `sephora_exclusive`, etc.
-- Ingredient/label constraints derived from `additional_concerns` (e.g. avoid `has_retinol = 1`, `has_strong_acid = 1`).
+- `secondary_category` / `tertiary_category` matching requested type.
+- Optional constraints: price range, specific brands.
 
-### 5.3 Effect-based similarity search
+### 5.3 Vector similarity search
 
-Run K-NN search in the **effect_embedding** space:
+Run K-NN search over `product_vectors.embedding` and return top-N products.
 
-- Query vector: `v_user`.
-- Candidate set: products passing filters.
-- Metric: cosine similarity.
+### 5.4 Re-ranking with TF–IDF + segment match
 
-Return top-N (e.g. 50) products with similarity scores and associated `product_effect_profile` rows so we can explain why each product matched.
+After retrieving candidates, re-rank using a transparent scoring layer:
 
-### 5.4 Re-ranking with constraints
-
-Apply a lightweight scoring layer on top of similarity:
-
-- Subtract penalties for high `tfidf_weight` on negative or side-effect labels that conflict with the user profile (e.g. `caused_breakouts` when `acne=True`).
-- Add bonuses when positive effects directly address user goals/conditions.
-- Optionally boost products with a large number of reviews from users with similar `skin_type_signals`.
-
-The final score is something like:
-
-```text
-score = sim_effect
-score -= 0.3 * weight("caused_breakouts") if user.conditions["acne"] else 0
-score -= 0.2 * weight("strong_fragrance") if user.sensitive_skin else 0
-score += 0.1 * weight("hydration") if user.goals["hydrate"] else 0
-...
-```
+- Add bonuses when top TF–IDF benefits match the user’s goals/conditions.
+- Subtract penalties when top TF–IDF negatives/side effects conflict with the user’s concerns.
+- Apply a simple segment match multiplier (oily/dry/sensitive) using per-product segment counts.
 
 Top-K results from this step are fed into the routine builder.
 
@@ -356,9 +236,7 @@ Define canonical routine slots:
 
 - Morning: `cleanser`, `treatment/serum`, `moisturizer`, `sunscreen`.
 - Evening: `cleanser`, `treatment/serum`, `moisturizer`.
-- Optional: `toner`, `mask`, `eye_cream` when relevant.
-
-Map `secondary_category` / `tertiary_category` from `product_info` into these slots (e.g. `Moisturizers` → `moisturizer`, `Toners` → `toner`).
+- Optional: `toner` when relevant.
 
 ### 6.2 Inputs to the routine builder LLM
 
@@ -367,24 +245,16 @@ For each routine generation request provide:
 - The full `user_information` structure.
 - For each slot, a small set (e.g. 5) of top-scoring candidate products, including:
   - `product_id`, `product_name`, `brand_name`, `price_usd`.
-  - `highlights`, truncated ingredients list, tags such as `has_retinol`, `has_strong_acid`, `has_fragrance`.
   - Top positive and negative effects from `product_effect_profile` (e.g. 5 highest `tfidf_weight` per type).
+  - A few evidence snippets (Section 7.4).
 
 The prompt instructs the LLM to:
 
 1. Choose at most one product per slot for morning and evening.
-2. Respect user conditions and constraints (avoid retinol, avoid fragrance for sensitive skin, etc.).
-3. Avoid conflicting combinations of actives within the same routine (e.g. no strong acid + retinol on the same night for sensitive users).
-4. Output both:
+2. Respect user conditions and constraints.
+3. Output both:
    - Structured JSON describing the routine steps.
    - Natural language explanations and usage instructions.
-
-### 6.3 Ingredient conflict checks
-
-Implement a simple rule layer, independent of the LLM:
-
-- Parse ingredient lists to set boolean flags: `has_retinol`, `has_strong_acid`, `has_vitamin_c`, `has_high_alcohol`, `has_fragrance`.
-- Provide these flags to the LLM and optionally pre-filter candidate combinations that obviously violate rules (e.g. no retinol in morning, limit number of strong acid products in one routine).
 
 ---
 
@@ -395,9 +265,10 @@ The chatbot front-end orchestrates user profiling, product search, routine gener
 ### 7.1 Core flows
 
 - **Onboarding Q&A:** ask a short sequence of questions to populate `user_information` (goals, conditions, skin type score, sensitivities, age, budget, product-type request).
-- **Product-type recommendation:** user asks, e.g., "Recommend a moisturizer for my oily, acne-prone skin" → update profile, run effect-based retrieval for moisturizers, show ranked list.
+- **Product-type recommendation:** user asks, e.g., "Recommend a moisturizer for my oily, acne-prone skin" → update profile, run retrieval for moisturizers, show ranked list.
 - **Routine creation:** once enough signals are collected, call the routine builder LLM to generate morning and evening routines.
 - **Evidence-based explanations:** when user asks "Why this product for redness?", fetch representative reviews from `review_effects` where `reduced_redness` appears and show short snippets.
+- **Response stance:** keep recommendations direct, but phrase claims as "users report…" and avoid diagnosis/treatment language.
 
 ### 7.2 Internal tools for the agent
 
@@ -412,8 +283,15 @@ The agent chain decides which tool to call based on user input and conversation 
 
 ### 7.3 Persistence
 
-- If users log in, store `user_id` with `user_information`, previously chosen routines, and feedback (likes/dislikes of recommendations).
-- Use this history to refine future recommendations (e.g. penalize products the user previously disliked).
+- No login/auth in v1.
+- `user_information` is maintained in-memory for the current session only.
+
+### 7.4 Evidence retrieval (reasonably simple indexing)
+
+To support “why this product” explanations:
+
+- Index `review_effects(product_id)` (already included above).
+- Optionally add an SQLite FTS5 table over `select_customer_reviews.review_text` (keyed by `rowid`) to retrieve short snippets quickly.
 
 ---
 
@@ -421,19 +299,15 @@ The agent chain decides which tool to call based on user input and conversation 
 
 ### 8.1 Models and infrastructure
 
-- **LLM for extraction and routines:** use a strong model (e.g. Claude, GPT-4.x) for offline extraction and online routine building.
-- **Embedding model:** use a consistent sentence embedding model for:
-  - Effect labels
-  - Product description text
-  - Optional natural-language user queries
-- **Vector DB:** Weaviate (for close alignment with Glowe) or an alternative like Qdrant/pgvector depending on deployment constraints.
+- **LLM for extraction and routines:** start with small sampling runs to measure token usage/cost and throughput, then choose model (local vs remote) and review volume to stay within the budget cap.
+- **Embedding model:** use one consistent sentence embedding model for:
+  - Product effect summary text
+  - User query strings
+- **Vector DB:** SQLite + `sqlite-vector` via the `sqliteai-vector` Python package, storing vectors as `BLOB`s inside SQLite and performing vector search through the extension.
+- **Deployment:** offline-only MVP (local execution; no continuous/online review processing).
 
 ### 8.2 Evaluation strategy
 
 - Manually inspect a sample of products and their top effects against real reviews to validate extraction.
 - Construct simple offline test cases (e.g. oily skin with redness) and check if top results from effect-based retrieval make sense to a domain expert.
 - Compare single-embedding vs dual-embedding performance on these cases to confirm the benefit of the effect embedding.
-
-### 8.3 Extension: image-based profiling
-
-In later stages, plug an image model into the onboarding flow to infer `skin_type`, `acne_severity`, or other attributes from face photos. These signals simply feed into the same mapping from `user_information` to `v_user` used by the effect-based retrieval.

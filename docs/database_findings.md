@@ -1,0 +1,315 @@
+# Database Findings (Sephora SQLite)
+
+Generated: 2026-01-10 22:25
+
+## 1. High-level counts
+
+- Products (`product_info`): **8,494**
+- Reviews (`select_customer_reviews`): **238,929**
+
+## 2. Category hierarchy
+
+### 2.1 From `select_customer_reviews` (reviews)
+
+- **Skincare** — 238,929 reviews
+  - Cleansers — 50,332 reviews
+    - Exfoliators: 7,382 reviews; 15 distinct products
+    - Face Wash & Cleansers: 29,938 reviews; 77 distinct products
+    - Toners: 13,012 reviews; 28 distinct products
+  - Eye Care — 29,650 reviews
+    - Eye Creams & Treatments: 29,650 reviews; 70 distinct products
+  - Lip Balms & Treatments — 7,775 reviews
+    - (null): 7,775 reviews; 16 distinct products
+  - Moisturizers — 63,673 reviews
+    - BB & CC Creams: 893 reviews; 2 distinct products
+    - Face Oils: 11,832 reviews; 32 distinct products
+    - Moisturizers: 46,997 reviews; 116 distinct products
+    - Night Creams: 3,951 reviews; 8 distinct products
+  - Sunscreen — 16,724 reviews
+    - (null): 491 reviews; 1 distinct products
+    - Face Sunscreen: 16,233 reviews; 44 distinct products
+  - Treatments — 70,775 reviews
+    - Blemish & Acne Treatments: 5,438 reviews; 14 distinct products
+    - Face Serums: 65,337 reviews; 161 distinct products
+
+### 2.2 From `product_info` (products)
+
+- **Bath & Body** — 405 products
+  - Bath & Shower — 84 products
+    - Bath Soaks & Bubble Bath: 7 products
+    - Body Wash & Shower Gel: 51 products
+    - Scrub & Exfoliants: 26 products
+  - Beauty Supplements — 2 products
+    - (null): 2 products
+  - Body Care — 69 products
+    - (null): 1 products
+    - Cellulite & Stretch Marks: 8 products
+    - Deodorant & Antiperspirant: 25 products
+    - Hand Sanitizer & Hand Soap: 7 products
+    - Intimate Care: 28 products
+  - Body Moisturizers — 220 products
+    - (null): 1 products
+    - Body Lotions & Body Oils: 197 products
+    - Hand Cream & Foot Cream: 22 products
+  - Candles & Home Scents — 1 products
+    - (null): 1 products
+  - Mini Size — 7 products
+    - (null): 7 products
+  - Self Tanners — 11 products
+    - (null): 6 products
+    - For Body: 4 products
+    - For Face: 1 products
+  - Sunscreen — 1 products
+    - Body Sunscreen: 1 products
+  - Value & Gift Sets — 10 products
+    - (null): 10 products
+- **Fragrance** — 1,432 products
+  - (null) — 2 products
+    - (null): 2 products
+  - Candles & Home Scents — 262 products
+    - (null): 4 products
+    - Candles: 193 products
+    - Diffusers: 65 products
+  - Men — 135 products
+    - Cologne: 135 products
+  - Mini Size — 3 products
+    - (null): 3 products
+  - Value & Gift Sets — 155 products
+    - (null): 7 products
+    - Cologne Gift Sets: 12 products
+    - Perfume Gift Sets: 136 products
+  - Women — 875 products
+    - Body Mist & Hair Mist: 20 products
+    - Perfume: 568 products
+    - Rollerballs & Travel Size: 287 products
+- **Gifts** — 4 products
+  - (null) — 4 products
+    - (null): 4 products
+- **Hair** — 1,464 products
+  - Hair Styling & Treatments — 757 products
+    - Dry Shampoo: 41 products
+    - Hair Dye & Root Touch-Ups: 5 products
+    - Hair Masks: 120 products
+    - Hair Oil: 65 products
+    - Hair Primers: 43 products
+    - Hair Spray: 28 products
+    - Hair Styling Products: 255 products
+    - Hair Supplements: 19 products
+    - Hair Thinning & Hair Loss: 2 products
+    - Leave-In Conditioner: 59 products
+    - Scalp Treatments: 120 products
+  - Mini Size — 28 products
+    - (null): 28 products
+  - Shampoo & Conditioner — 431 products
+    - Conditioner: 193 products
+    - Shampoo: 238 products
+  - Shop by Concern — 4 products
+    - Color Care: 3 products
+    - Damaged Hair: 1 products
+  - Tools — 153 products
+    - Accessories: 30 products
+    - Brushes & Combs: 45 products
+    - Curling Irons: 27 products
+    - Hair Dryers: 26 products
+    - Hair Straighteners & Flat Irons: 25 products
+  - Value & Gift Sets — 91 products
+    - (null): 91 products
+- **Makeup** — 2,369 products
+  - Accessories — 45 products
+    - (null): 1 products
+    - Blotting Papers: 3 products
+    - Eyelash Curlers: 6 products
+    - Makeup Bags & Travel Cases: 5 products
+    - Makeup Removers: 26 products
+    - Tweezers & Eyebrow Tools: 4 products
+  - Brushes & Applicators — 233 products
+    - (null): 5 products
+    - Brush Cleaners: 13 products
+    - Brush Sets: 13 products
+    - Eye Brushes: 53 products
+    - Face Brushes: 118 products
+    - Lip Brushes: 3 products
+    - Sponges & Applicators: 28 products
+  - Cheek — 165 products
+    - Blush: 92 products
+    - Bronzer: 58 products
+    - Cheek Palettes: 15 products
+  - Eye — 711 products
+    - (null): 1 products
+    - Eye Palettes: 135 products
+    - Eye Primer: 19 products
+    - Eye Sets: 18 products
+    - Eyebrow: 132 products
+    - Eyeliner: 119 products
+    - Eyeshadow: 66 products
+    - False Eyelashes: 52 products
+    - Mascara: 166 products
+    - Under-Eye Concealer: 3 products
+  - Face — 659 products
+    - BB & CC Cream: 10 products
+    - Color Correct: 10 products
+    - Concealer: 84 products
+    - Contour: 23 products
+    - Face Primer: 118 products
+    - Face Sets: 18 products
+    - Foundation: 157 products
+    - Highlighter: 96 products
+    - Setting Spray & Powder: 125 products
+    - Tinted Moisturizer: 18 products
+  - Lip — 411 products
+    - (null): 1 products
+    - Lip Balm & Treatment: 86 products
+    - Lip Gloss: 69 products
+    - Lip Liner: 39 products
+    - Lip Plumper: 15 products
+    - Lip Sets: 15 products
+    - Lip Stain: 6 products
+    - Lipstick: 161 products
+    - Liquid Lipstick: 19 products
+  - Makeup Palettes — 20 products
+    - (null): 20 products
+  - Mini Size — 37 products
+    - (null): 37 products
+  - Nail — 52 products
+    - (null): 52 products
+  - Value & Gift Sets — 36 products
+    - (null): 36 products
+- **Men** — 60 products
+  - (null) — 1 products
+    - (null): 1 products
+  - Hair — 3 products
+    - Shampoo & Conditioner: 3 products
+  - Other Needs — 5 products
+    - Body Products: 5 products
+  - Shaving — 15 products
+    - Aftershave: 5 products
+    - Shaving: 10 products
+  - Skincare — 32 products
+    - Eye Cream: 6 products
+    - Face Wash: 9 products
+    - Moisturizer & Treatments: 15 products
+    - Sunscreen: 2 products
+  - Value & Gift Sets — 4 products
+    - Skincare Sets: 4 products
+- **Mini Size** — 288 products
+  - (null) — 1 products
+    - (null): 1 products
+  - Bath & Body — 7 products
+    - (null): 7 products
+  - Fragrance — 15 products
+    - (null): 15 products
+  - Hair — 56 products
+    - (null): 56 products
+  - Makeup — 137 products
+    - (null): 137 products
+  - Skincare — 66 products
+    - (null): 66 products
+  - Value & Gift Sets — 6 products
+    - (null): 6 products
+- **Skincare** — 2,420 products
+  - Cleansers — 361 products
+    - (null): 3 products
+    - Blotting Papers: 4 products
+    - Exfoliators: 41 products
+    - Face Wash & Cleansers: 217 products
+    - Face Wipes: 6 products
+    - Makeup Removers: 10 products
+    - Toners: 80 products
+  - Eye Care — 186 products
+    - Eye Creams & Treatments: 172 products
+    - Eye Masks: 14 products
+  - High Tech Tools — 80 products
+    - (null): 3 products
+    - Anti-Aging: 49 products
+    - Facial Cleansing Brushes: 13 products
+    - Hair Removal: 10 products
+    - Teeth Whitening: 5 products
+  - Lip Balms & Treatments — 61 products
+    - (null): 61 products
+  - Masks — 166 products
+    - Face Masks: 134 products
+    - Sheet Masks: 32 products
+  - Mini Size — 112 products
+    - (null): 112 products
+  - Moisturizers — 551 products
+    - (null): 1 products
+    - BB & CC Creams: 4 products
+    - Decollete & Neck Creams: 10 products
+    - Face Oils: 66 products
+    - Mists & Essences: 67 products
+    - Moisturizers: 386 products
+    - Night Creams: 17 products
+  - Self Tanners — 53 products
+    - (null): 1 products
+    - For Body: 34 products
+    - For Face: 18 products
+  - Shop by Concern — 1 products
+    - Anti-Aging: 1 products
+  - Sunscreen — 108 products
+    - (null): 3 products
+    - Body Sunscreen: 10 products
+    - Face Sunscreen: 95 products
+  - Treatments — 466 products
+    - Blemish & Acne Treatments: 37 products
+    - Face Serums: 379 products
+    - Facial Peels: 50 products
+  - Value & Gift Sets — 196 products
+    - (null): 196 products
+  - Wellness — 79 products
+    - Beauty Supplements: 44 products
+    - Facial Rollers: 25 products
+    - Holistic Wellness: 10 products
+- **Tools & Brushes** — 52 products
+  - Beauty Accessories — 5 products
+    - Makeup & Travel Cases: 5 products
+  - Beauty Tools — 23 products
+    - (null): 1 products
+    - Eyelash Curlers: 3 products
+    - Manicure & Pedicure Tools: 1 products
+    - Sharpeners: 6 products
+    - Teeth Whitening: 2 products
+    - Tweezers & Eyebrow Tools: 10 products
+  - Brushes & Applicators — 13 products
+    - Brush Sets: 1 products
+    - Eye Brushes: 1 products
+    - Face Brushes: 3 products
+    - Facial Cleansing Brushes: 3 products
+    - Sponges & Applicators: 5 products
+  - Hair Tools — 11 products
+    - Accessories: 2 products
+    - Brushes & Combs: 7 products
+    - Hair Straighteners & Flat Irons: 2 products
+
+## 3. Reviews without an associated product
+
+- Reviews with missing/empty `product_id`: **0**
+- Reviews whose `product_id` is not present in `product_info`: **0**
+- Total reviews without an associated product: **0**
+
+## 4. Products with fewer than 10 reviews
+
+### 4.1 All products (`product_info`) vs review coverage
+
+- Total products: **8,494**
+- Products with 0 reviews: **7,910**
+- Products with 1–9 reviews: **0**
+- Products with <10 reviews: **7,910**
+- Products with ≥10 reviews: **584**
+
+### 4.2 Skincare products only (`primary_category = 'Skincare'`)
+
+- Total skincare products: **2,420**
+- Skincare products with 0 reviews: **1,836**
+- Skincare products with 1–9 reviews: **0**
+- Skincare products with <10 reviews: **1,836**
+- Skincare products with ≥10 reviews: **584**
+
+### 4.3 Notes
+
+- Among products that appear in `select_customer_reviews`, review counts range from **150** to **995** reviews per product.
+
+## 5. Very short reviews (<10 words)
+
+- Reviews with 0 words (empty/whitespace): **0**
+- Reviews with 1–9 words: **2**
+- Reviews with <10 words total: **2**
