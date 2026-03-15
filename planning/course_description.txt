@@ -1,0 +1,107 @@
+Course Description
+Machine Learning for Business Applications bridges the gap between ML theory and real-world business deployment. 
+Students will learn to take ML models from prototype to production in a cloud environment, applying their skills to full lifecycle business problems. 
+The course covers both foundational and advanced ML topics including imbalanced classification, time series forecasting, anomaly detection, and reinforcement learning, with an emphasis on when to use each approach and how to evaluate it in business settings. 
+Students should be comfortable with Python programming and have prior exposure to core machine learning concepts such as supervised learning, model evaluation, and data preparation.
+Students will work with Amazon Web Services (AWS) to build complete ML pipelines: training and evaluating models in cloud-based compute environments, managing data assets in S3, storing predictions in cloud databases (MySQL or PostgreSQL on RDS), 
+and building interactive, ML-driven dashboards with Tableau or Streamlit connected to live cloud data sources. The course also introduces modern AI capabilities including natural language processing with large language models and agentic AI workflows, reflecting the rapidly evolving landscape of applied ML in business.
+Each week balances theory and practice: Monday sessions feature interactive lectures with in-class discussion and participation activities, while Wednesday sessions are dedicated to hands-on labs, demos, case exercises, and guided coding activities. 
+A semester-long team project anchors the learning experience, culminating in a fully functional proof-of-concept ML system with a live demo.
+
+Learning Objectives
+After completing this course, you will be able to:
+• Build end-to-end machine learning pipelines using AWS cloud infrastructure to solve real-world business problems.
+• Configure and manage cloud ML infrastructure including managed databases, object storage, and ML compute environments.
+• Apply advanced ML techniques including imbalanced classification, anomaly detection, and time series forecasting to business datasets with production-quality code.
+• Leverage large language models for text analytics, sentiment analysis, and automated insight generation in business contexts.
+• Evaluate ML systems holistically, considering model performance, data quality, monitoring, drift detection, and production readiness.
+• Connect Tableau to cloud ML infrastructure to build dashboards on live prediction data, extending your existing visualization skills to production analytics workflows.
+• Deliver a complete, working proof-of-concept ML system as part of a collaborative team project, from problem framing through live demo.
+
+Evaluation
+46-887 Machine Learning for Business Applications
+Your final grade is a weighted sum of the components below. The structure rewards consistent engagement, steady project progress, and the ability to deliver a complete ML system that solves a real business problem.
+Component Description Weight Machine Learning Projects (4) Hands on technical projects done outside of class 20%
+Class Participation
+In-class quizzes + in-class lab code submissions
+15% Weekly Canvas Quizzes (6) 10 Qs on prior week’s content; 2 attempts 20%
+Project Updates (2)
+Written progress reports on final project milestones
+5% Midpoint Presentation 5-min team presentation of project progress 5%
+
+Final Presentation & Demo
+8-min team presentation with live dashboard demo
+15% Final Report & Code 10–15 page report + documented code repository 20%
+Machine Learning Projects (20%)
+Machine learning projects are well-defined guided projects that walk you through core technical portions of the class such as anomaly detection, time series forecasting, large language models, and reinforcement learning. 
+ML projects are graded on a scale from 1=minimal work done, 2=mostly complete, and 3=completed to professional standards.
+Class Participation (15%)
+Active engagement is essential in this hands-on course. Participation is measured through two mechanisms:
+• In-Class Quizzes (Mondays): Most Monday sessions include a brief 2-question quiz on Canvas during class, checking understanding of the day’s lecture content. Graded for completion and basic correctness.
+• Lab Code Submissions (Wednesdays): Most Wednesday sessions require you to submit the notebook or code you worked on in class. Graded for completion—the goal is active engagement with the hands-on material.
+Your two lowest participation scores will be dropped to accommodate absences or off days.
+46-887 Machine Learning for Business Applications
+Weekly Canvas Quizzes (20%)
+Seven quizzes will be administered on Canvas throughout the course. Each quiz consists of 10 questions covering the prior week’s lecture and lab material. You have two attempts per quiz with no time limit; your highest score is recorded. 
+The use of generative AI on quizzes is not permitted.
+Course Project (45%)
+The course project is the centerpiece of this class. Working in teams of 2–3, you will build a proof-of-concept ML system that demonstrates the full analytics pipeline:
+• Train a machine learning model to make predictions on a business-relevant dataset using AWS.
+• Store predictions in a cloud database (MySQL or PostgreSQL on AWS RDS) for downstream consumption.
+• Visualize results in an interactive Tableau or streamlit dashboard connected to the cloud database, applying your visualization skills from Data Exploration to communicate ML-driven insights to a business audience.
+The project is scaffolded through the following milestones:
+• Project Proposal (Week 2): 1-page proposal identifying your team, business question, data sources, and planned approach.
+• Project Update 1 (Week 3): Data acquired and explored. Initial model prototyping underway. Cloud infrastructure configured.
+• Midpoint Presentation (Week 5): 5-minute recorded presentation showing data, methodology, cloud setup, initial results, and next steps. All teams present over recorded Zoom session and provide feedback to 3 other teams.
+• Project Update 2 (Week 6): Full pipeline operational: model trained, predictions stored in RDS, Tableau dashboard in progress.
+• Final Presentation & Demo (Week 7): 8-minute team presentation with a live walkthrough of your ML system, cloud infrastructure, and Tableau dashboard. Randomly assigned teams will present in class the rest will record presentation over Zoom.
+• Final Report & Code (Due April 27th): 10–15 page report documenting your business problem, data, methodology, cloud architecture, results, and reflections. Accompanied by a documented code repository.
+
+Course Schedule
+Mondays feature interactive lectures with in-class discussion and participation quizzes. Wednesdays are dedicated to hands-on labs, coding exercises, case discussions, and project work. The schedule is tentative and subject to adjustment.
+Wk Monday Wednesday Deliverables 1 Mar 9 No Class – Spring Break Mar 11 Course Introduction: From ML Models to AI Systems Quiz 1 – Pre-Course Survey Due Mar 13
+2
+Mar 16
+Integrating ML Models into Business Services
+Mar 18
+Lab: AWS Cloud Setup and ML Pipeline Components
+Quiz 2
+Due Mar 20
+3 Mar 23 Evaluation, Performance, and Testing ML Systems Mar 25 Lab: Building a Cloud Data Pipeline ML Project 1 Due Monday March 23 Quiz 3 + Project Update Memo 1 Due Mar 27
+4
+Mar 30
+Natural Language Processing and Large Language Models
+Apr 1
+Lab: Natural Language Processing and Large Language Models
+ML Project 2 Due Monday March 30
+Quiz 4
++
+Project Midpoint Presentation (Zoom Recording)
+Due Apr 3
+5 Apr 6 Apr 8 ML Project 3 Due Monday April 6
+Imbalanced Classification & Anomaly Detection Lab: Cloud-Based Anomaly Detection and Visualization Quiz 5 Due Apr 3
+6
+Apr 13
+Time Series Forecasting for Business
+Apr 15
+Lab: Forecasting Pipeline & Cloud-Connected Tableau
+ML Project 4 Due Monday April 13
+Quiz 6
++
+Project Update Memo 2
+Due April 17 7 Apr 20 Reinforcement Learning Apr 22 Final Project Presentations Quiz 7 Due Apr 24 Final Project
+
+Course overview:
+1. Build end-to-end machine learning pipelines using cloud infrastructure to solve real-world business problems. 2. Apply advanced ML techniques
+1. Imbalanced classification
+2. Anomaly detection
+3. Time series forecasting
+4. Natural Language Processing
+5. Large Language Models
+3. Making you more autonomous to grow your skills (ML, business function, cloud, data engineering)
+
+What is this course not focused on?
+• We will learn about technical tools that will enable you to build valuable business insights. We will not make you software engineers.
+• We will cover some new techniques that move beyond the fundamentals of ML. We will not cover every technique that exists.
+• We cover how to use techniques, not necessarily the math or algorithm details.
+• This is not fundamentally a programming course, but there is programming involved
